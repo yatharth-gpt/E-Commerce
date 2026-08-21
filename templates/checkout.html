@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Cart & Checkout | OM KIRANA STORE{% endblock %}
+{% block content %}<h1>🛒 Your Cart</h1><div id="cart-area"></div>
+<section class="checkout-box"><h2>Checkout</h2><form id="order-form">
+<input name="customer_name" value="{{session.get('customer_name','')}}" required placeholder="Your name"><input name="phone" value="{{session.get('customer_phone','')}}" required placeholder="Mobile number" inputmode="tel">
+<div class="form-grid"><label>Order Type<select name="delivery_type"><option>Pickup</option><option>Delivery</option></select></label><label>Payment<select name="payment_method"><option>Pay at Store</option><option>UPI</option></select></label><label>Coupon<input name="coupon_code" placeholder="SAVE10"></label></div>
+<textarea name="address" placeholder="Delivery address (required for home delivery)"></textarea><textarea name="note" placeholder="Special instructions (optional)"></textarea>
+<button class="btn" type="submit">Place Order</button></form><div id="order-message"></div></section>{% endblock %}
+{% block scripts %}<script>
+function renderCart(){const c=getCart(),a=document.getElementById("cart-area");if(!c.length){a.innerHTML='<div class="empty">Cart is empty. <a href="/">Browse products</a></div>';return;}let total=0,h='<div class="cart-list">';c.forEach((p,i)=>{let s=p.price*p.quantity;total+=s;h+=`<div class="cart-row"><div><strong>${escapeHtml(p.name)}</strong><small>₹${p.price.toFixed(2)} × ${p.quantity}</small></div><div>₹${s.toFixed(2)} <button onclick="changeQty(${i},-1)">−</button><button onclick="changeQty(${i},1)">+</button><button onclick="removeItem(${i})">✕</button></div></div>`});a.innerHTML=h+`<div class="total">Subtotal: ₹${total.toFixed(2)}</div></div>`;}
+function changeQty(i,d){const c=getCart();c[i].quantity+=d;if(c[i].quantity<1)c.splice(i,1);saveCart(c);renderCart();}
+function removeItem(i){const c=getCart();c.splice(i,1);saveCart(c);renderCart();}
+document.getElementById("order-form").onsubmit=async e=>{e.preventDefault();const c=getCart();if(!c.length)return alert("Cart is empty.");const f=new FormData(e.target);const payload=Object.fromEntries(f.entries());payload.items=c.map(x=>({id:x.id,quantity:x.quantity}));const r=await fetch("/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const d=await r.json();if(d.success){localStorage.removeItem("om_cart");updateCartCount();location.href="/order/"+d.order_id;}else document.getElementById("order-message").innerHTML='<div class="flash error">'+escapeHtml(d.message)+'</div>';};renderCart();
+</script>{% endblock %}

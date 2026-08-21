@@ -1,0 +1,9 @@
+{
+  "name":"OM KIRANA STORE",
+  "short_name":"OM KIRANA",
+  "start_url":"/",
+  "display":"standalone",
+  "background_color":"#ffffff",
+  "theme_color":"#111111",
+  "icons":[]
+}

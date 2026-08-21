@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% block title %}OM KIRANA STORE | Smart Online Store{% endblock %}
+{% block content %}
+<section class="hero"><div><p class="eyebrow">PROFESSIONAL STORE UPGRADE • PHASE 9</p><h1>Smart shopping.<br>Local store.</h1><p>Search, scan, order, track and reorder from your phone. Store stock is updated automatically after every order.</p><a class="btn" href="#products">Shop Now</a></div><div class="hero-card">📱<br><strong>SCAN • SHOP • TRACK</strong></div></section>
+<div class="smart-search">
+  <div class="search-row"><input id="search" type="search" placeholder="🔎 Search products, categories...">
+    <button class="btn secondary" id="voiceBtn" type="button">🎤 Voice</button><button class="btn" type="button" onclick="openScanner()">📷 Scan Barcode</button></div>
+  <div class="scan-box" id="scanner" hidden><video id="scannerVideo" playsinline></video><div class="scan-help">Point the camera at a barcode. If your browser does not support automatic scanning, enter the barcode below.</div><input id="manualBarcode" placeholder="Enter barcode"><button class="btn" onclick="lookupBarcode()">Find Product</button><button class="btn secondary" onclick="closeScanner()">Close</button></div>
+</div>
+{% if offers %}<section class="offer-strip"><strong>🔥 LIVE OFFERS</strong>{% for o in offers %}<span>{{o.name}} • {{o.discount_percent|round|int}}% OFF</span>{% endfor %}</section>{% endif %}
+<div class="category-pills"><button class="cat-pill active" data-cat="">All</button>{% for c in categories %}<button class="cat-pill" data-cat="{{c.name}}">{{c.name}}</button>{% endfor %}</div>
+<section id="products"><div class="section-title"><div><p class="eyebrow">STORE CATALOG</p><h2>Available Products</h2></div><span id="resultCount"></span></div>
+<div class="grid" id="product-grid">{% for p in products %}
+<article class="card product-card" data-name="{{p.name|lower}}" data-category="{{p.category_name}}" data-barcode="{{p.barcode}}">
+<div class="product-image">{% if p.image and p.image.startswith('uploads/') %}<img src="{{url_for('static',filename=p.image)}}" alt="{{p.name}}">{% elif p.image %}<img src="{{url_for('static',filename='product-images/' + p.image + '.svg')}}" alt="{{p.name}}">{% else %}<span>🛍️</span>{% endif %}</div><div class="card-body"><small>{{p.category_name or 'Other'}}</small>
+<h3>{{p.name}}</h3><div class="rating">⭐ {{'%.1f'|format(p.rating)}} <small>({{p.review_count}})</small></div>
+<p class="price">₹{{'%.2f'|format(p.price)}} <span>/ {{p.unit}}</span></p>
+{% if p.offer %}<span class="offer-tag">{{p.offer}}</span>{% endif %}
+{% if p.stock==0 %}<span class="stock out">Out of Stock</span>{% elif p.stock<=10 %}<span class="stock low">Only {{p.stock}} left</span>{% else %}<span class="stock">In Stock</span>{% endif %}
+<div class="actions"><a class="btn secondary" href="{{url_for('product',product_id=p.id)}}">Details</a>{% if p.stock>0 %}<button class="btn add-to-cart" type="button" data-id="{{p.id}}" data-name="{{p.name|e}}" data-price="{{p.price}}" data-stock="{{p.stock}}">Add</button>{% endif %}<button class="icon-btn favorite-btn" type="button" aria-label="Add {{p.name|e}} to favorites" data-id="{{p.id}}">♡</button></div>
+</div></article>{% endfor %}</div></section>
+{% if coupons %}<section class="coupon-section"><h2>🎁 Coupons</h2><div class="coupon-grid">{% for c in coupons %}<div class="coupon"><strong>{{c.code}}</strong><span>{{c.discount_percent|round|int}}% OFF{% if c.max_discount %} up to ₹{{c.max_discount|round|int}}{% endif %}</span><small>Min order ₹{{c.min_order|round|int}}</small></div>{% endfor %}</div></section>{% endif %}
+{% endblock %}
+{% block scripts %}<script>
+let activeCategory="";
+function filterProducts(){const q=(document.getElementById("search").value||"").toLowerCase();let n=0;
+document.querySelectorAll(".product-card").forEach(c=>{const ok=(!q||c.dataset.name.includes(q)||c.dataset.category.toLowerCase().includes(q)||c.dataset.barcode.includes(q))&&(!activeCategory||c.dataset.category===activeCategory);c.style.display=ok?"":"none";if(ok)n++;});document.getElementById("resultCount").textContent=n+" products";}
+document.getElementById("search").addEventListener("input",filterProducts);
+document.querySelectorAll(".cat-pill").forEach(b=>b.onclick=()=>{document.querySelectorAll(".cat-pill").forEach(x=>x.classList.remove("active"));b.classList.add("active");activeCategory=b.dataset.cat;filterProducts();});
+document.querySelectorAll(".add-to-cart").forEach(b=>b.onclick=()=>addToCart(Number(b.dataset.id),b.dataset.name,Number(b.dataset.price),Number(b.dataset.stock)));
+document.querySelectorAll(".favorite-btn").forEach(b=>b.onclick=()=>toggleFavorite(Number(b.dataset.id),b));
+document.getElementById("voiceBtn").onclick=()=>{const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){alert("Voice search is not supported in this browser.");return;}const r=new R();r.lang="en-IN";r.onresult=e=>{document.getElementById("search").value=e.results[0][0].transcript;filterProducts();};r.start();};
+filterProducts();
+async function openScanner(){const box=document.getElementById("scanner");box.hidden=false;const video=document.getElementById("scannerVideo");try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});video.srcObject=stream;await video.play();if("BarcodeDetector" in window){const detector=new BarcodeDetector({formats:["ean_13","ean_8","code_128","upc_a","upc_e","qr_code"]});const scan=async()=>{if(box.hidden)return;try{const codes=await detector.detect(video);if(codes.length){document.getElementById("manualBarcode").value=codes[0].rawValue;lookupBarcode();closeScanner();return;}}catch(e){}requestAnimationFrame(scan)};scan();}}catch(e){alert("Camera permission denied or camera unavailable. You can enter the barcode manually.");}}
+function closeScanner(){const v=document.getElementById("scannerVideo");if(v.srcObject)v.srcObject.getTracks().forEach(t=>t.stop());document.getElementById("scanner").hidden=true;}
+async function lookupBarcode(){const code=document.getElementById("manualBarcode").value.trim();if(!code)return;const r=await fetch("/api/barcode/"+encodeURIComponent(code));const d=await r.json();if(d.success)location.href="/product/"+d.product.id;else alert(d.message);}
+</script>{% endblock %}

@@ -1,4 +1,4 @@
-
+import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, Response
 from database import init_db, get_db, seed_products
 from functools import wraps
@@ -13,7 +13,7 @@ from urllib.parse import quote
 import qrcode, re, json
 
 app=Flask(__name__)
-app.secret_key="change-this-secret-key"
+app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret-key")
 UPLOAD_FOLDER=Path(app.root_path)/"static"/"uploads"
 UPLOAD_FOLDER.mkdir(parents=True,exist_ok=True)
 init_db(); seed_products()
